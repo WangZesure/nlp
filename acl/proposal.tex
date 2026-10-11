@@ -34,95 +34,113 @@ mathematical reasoning is unaffected.
 
 \section{Background \& Motivation}
 Reasoning-augmented language models (LRMs) spend a variable amount of compute
-``thinking'' before answering \citep{Guo2025DeepSeekR1}, and this budget is
-increasingly exposed as a user-facing control \citep{Muennighoff2025s1,
-Snell2024TestTimeCompute}. The implicit contract is simple: \emph{more thinking
-buys more trustworthy answers}. Practitioners act on it---raising the budget to
-``max'' whenever an answer matters.
-
-That contract is being contradicted from several directions.
-Reinforcement learning that raises accuracy degrades calibration
-\citep{Wang2026CAPO, Jin2025Entropy}; enhancing reasoning amplifies tool
-hallucination, even at inference time \citep{Yin2025ReasoningTrap}; ``slower''
-models are measurably \emph{less} truthful under misleading input
-\citep{Fang2025Slower}; and reasoning models stay confidently wrong on a large
-fraction of false-premise queries \citep{Sathyanathan2025Presuppositions}.
-Crucially, the evidence is \emph{single-axis}, \emph{training-side}, and
-\emph{descriptive}: it shows the trade-off \emph{exists}, not whether it is a
-law, or---the property a deployment rule needs---whether it is
-\emph{predictable} from the trace before a budget is committed.
+``thinking'' before answering \citep{Guo2025DeepSeekR1}, and this budget is now
+a user-facing control \citep{Muennighoff2025s1,Snell2024TestTimeCompute}. The
+implicit contract is simple: \emph{more thinking buys more trustworthy
+answers}. Practitioners act on it---raising the budget to ``max'' whenever an
+answer matters. Our survey (below) finds that contract contradicted across the
+field. If ``think longer'' is not a safe default, the budget must be chosen per
+query---which requires knowing whether the trade-off is \emph{predictable}.
 
 \section{Research Questions \& Hypotheses}
 \textbf{RQ.} Does increasing a model's thinking budget systematically trade
 reliability for accuracy, and can the degradation be foreseen?
-\begin{itemize}\itemsep1pt
-  \item \textbf{H1 (task-dependence).} The ratio of reliability loss to
-  accuracy gain differs across task types by at least a factor of two.
-  \item \textbf{H2 (predictability, primary).} A predictor trained on a
-  held-out half decides, at low budget and \emph{without} seeing the
-  high-budget answer, whether continuing will help; the induced policy beats
-  the best fixed budget in \emph{usable accuracy} at matched cost.
-  \item \textbf{H3 (negative control).} Shuffling the trace features removes
-  H2's advantage---if not, the predictor exploits an artefact.
-\end{itemize}
-Each claim carries an explicit falsification condition, and the design is
-pre-registered on a held-out prompt split.
+\textbf{H1 (task-dependence):} the ratio of reliability loss to accuracy gain
+differs across task types by at least $2\times$. \textbf{H2 (predictability,
+primary):} a predictor trained on a held-out half decides, at low budget and
+\emph{without} seeing the high-budget answer, whether continuing will help, and
+the induced policy beats the best fixed budget in \emph{usable accuracy} at
+matched cost. \textbf{H3 (negative control):} shuffling the trace features
+removes H2's advantage---if not, the predictor exploits an artefact.
+Each claim carries an explicit falsification condition, on a held-out prompt
+split.
 
-\section{Preliminary Literature}
-The closest work varies the reasoning budget and measures \emph{one} axis:
-\citet{DontThinkTwice2025} show over-reasoning impairs confidence calibration;
-\citet{WhenMoreThinkingHurts2026} characterize the diminishing---sometimes
-negative---marginal utility of extra tokens. \citet{Yin2025ReasoningTrap} prove
-the capability--reliability trade-off is method-agnostic, and
-\citet{Fang2025Slower} establish inverse truthfulness scaling.
-Our study differs on three points: it measures three reliability axes
-\emph{jointly} to test whether they degrade as one; it spans tasks and model
-families rather than one benchmark; and it asks whether the degradation is
-\emph{predictable}, turning the trade-off curve into a black-box budget rule.
-(40 references collected and verified; ACL~2026 landscape survey of 1{,}409
-papers informs the framing.)
+\section{Survey \& Preliminary Literature}
+We surveyed the ACL~2026 landscape (1{,}409 papers) to locate the gap, and
+found the same warning recurring across otherwise unrelated subfields:
+capability gains are bought with reliability losses. Reinforcement learning
+that raises accuracy degrades calibration \citep{Wang2026CAPO,Jin2025Entropy};
+reasoning enhancement amplifies tool hallucination, method-agnostically
+\citep{Yin2025ReasoningTrap}; ``slower'' models are less truthful under
+misleading input \citep{Fang2025Slower}; reasoning models stay confidently
+wrong on false premises \citep{Sathyanathan2025Presuppositions} and are
+\emph{worse} at abstaining on unanswerable questions
+\citep{Kirichenko2025AbstentionBench}; and they spend an order of magnitude more
+tokens while sometimes being \emph{less} accurate
+\citep{Srivastava2025Overthink,Shojaee2025IllusionThinking}.
+
+This evidence is fragmented along three axes. It is \emph{task-local} (one
+benchmark, often one model or recipe); \emph{training-side} (the sharpest
+results concern what RLVR does to weights \citep{Yue2025RLBeyondBase,
+Zhao2025SpuriousRewards}, which API users cannot reach); and
+\emph{single-axis}---calibration \emph{or} hallucination \emph{or} abstention,
+never measured jointly, so we cannot tell whether the failures share a cause.
+The two closest studies vary the budget and measure one axis:
+\citet{DontThinkTwice2025} show over-reasoning impairs calibration;
+\citet{WhenMoreThinkingHurts2026} characterize its diminishing---sometimes
+negative---marginal utility. Both are \emph{descriptive}: neither asks whether
+the losses across axes \emph{co-move}, nor whether they are \emph{predictable}
+before a budget is committed. We therefore change the question from
+\emph{whether} the trade-off exists to \emph{whether it is a law}---and whether
+it can be turned into a deployment rule.
 
 \section{Method \& Experimental Design}
-\paragraph{The object.} Everything is read off the \emph{budget--reliability
-profile} of a model on a task: accuracy and each reliability axis as a function
-of the thinking budget. We report against the \emph{realized} reasoning-token
-count, since nominal budget knobs are not comparable across providers.
-
-\paragraph{The tax.} With every reliability score oriented so that higher is
-better, $\tau_r=(\partial\rho_r/\partial b)/(\partial \mathrm{acc}/\partial b)$
-is the reliability given up per unit of accuracy gained. Because $\tau_r$
-diverges where accuracy saturates, our primary summaries are bounded instead:
-the fixed-coverage risk $R(c)$ and the area under the risk--coverage curve
+\paragraph{The object and the tax.} Everything is read off the
+\emph{budget--reliability profile}---accuracy and each reliability axis as a
+function of the thinking budget, reported against \emph{realized} reasoning
+tokens since nominal knobs are not comparable across providers. With every score
+oriented so that higher is better,
+$\tau_r=(\partial\rho_r/\partial b)/(\partial \mathrm{acc}/\partial b)$ is the
+reliability given up per unit of accuracy gained; because $\tau_r$ diverges
+where accuracy saturates, our primary summaries are bounded instead---the
+fixed-coverage risk $R(c)$ and the area under the risk--coverage curve
 \citep{Geifman2017Selective}.
 
 \paragraph{Three axes.} (i) \emph{Calibration}: ECE \citep{Guo2017ECE} and
-verbalized overconfidence \citep{Kadavath2022KnowWhatTheyKnow,Tian2023JustAsk}.
-(ii) \emph{Selective prediction}: $R(c)$ and AURC. (iii)
+verbalized overconfidence
+\citep{Kadavath2022KnowWhatTheyKnow,Tian2023JustAsk,Xiong2023Confidence}.
+(ii) \emph{Selective prediction}: $R(c)$ and AURC
+\citep{Geifman2017Selective,Slobodkin2024Abstention}. (iii)
 \emph{Abstention vs.\ fabrication} on false-premise items, classified as
 refute / hedge / endorse, with fabrication rate = endorse share
 \citep{Sathyanathan2025Presuppositions,Kirichenko2025AbstentionBench}.
 
-\paragraph{Tasks and budget.} Four task types span where compute should help
-and where it can hurt: mathematical reasoning (GSM8K, MATH-500; verifiable),
-factual QA (NQ), multi-hop QA (HotpotQA; composition), and false-premise items
-built from SciFact claims whose evidence contradicts them
-\citep{Wadden2020SciFact}. The budget axis uses the provider's official
-controls---thinking on/off and reasoning-effort levels---not \texttt{max\_tokens},
-which would confound budget with truncation; realized reasoning tokens are
-logged per response. Four budgets $\times$ two prompt templates $\times$
-$k{=}4$ samples per item, with prompt-clustered bootstrap intervals.
+\paragraph{Test sets.} Four task types span where extra compute should help and
+where it can hurt, each with a verifiable gold standard:
+\begin{itemize}\itemsep1pt
+  \item \textbf{Math reasoning} (GSM8K, MATH-500; numeric match) --- the
+  \emph{positive control}, where thinking should help.
+  \item \textbf{Factual QA} (Natural Questions; alias match) --- closed-book
+  recall, where thinking should mostly \emph{waste} budget.
+  \item \textbf{Multi-hop QA} (HotpotQA; alias match) --- answers requiring
+  composition of $\ge\!2$ facts; the reasoning test, where errors cascade.
+  \item \textbf{False premise} --- SciFact claims whose evidence
+  \emph{contradicts} them \citep{Wadden2020SciFact}, rewritten as questions
+  that presuppose them. The only setting where the reliable behaviour is to
+  \emph{refuse}; our \emph{negative control} and the sole source of the
+  fabrication axis (classified refute / hedge / endorse).
+\end{itemize}
+200 items per task, with a prompt-level split held out for evaluating the
+stopping rule.
+
+\paragraph{Budget and sampling.} The budget axis uses the provider's official
+controls---thinking on/off and reasoning-effort levels---rather than
+\texttt{max\_tokens}, which would confound budget with truncation; realized
+reasoning tokens are logged per response. Four budgets $\times$ two prompt
+templates $\times\,k{=}4$ samples per item, with prompt-clustered bootstrap
+intervals \citep{Zhang2025BeyondSingular,Miller2024ErrorBars}.
 
 \paragraph{From profile to decision.} The profile yields an oracle: the budget
 maximizing \emph{usable accuracy}, i.e.\ accuracy at the coverage where ECE
 stays below a target $\epsilon$. We then test whether that oracle is
 \emph{findable} from low-budget features alone (realized length, verbalized
-confidence, self-consistency, hedging markers), with the H3 permutation
-control.
+confidence, self-consistency \citep{Manakul2023SelfCheckGPT}, hedging markers),
+with the H3 permutation control.
 
 \section{Preliminary Result}
-A first real run on \texttt{deepseek-flash} (1{,}280 calls, 0 errors;
-${\sim}\text{\textyen}7$--13) already indicates the tax is
-\emph{task-dependent} and \emph{switch-triggered}:
+A first real run on \texttt{deepseek-flash} (1{,}280 calls, 0 errors,
+${\sim}$\textyen7--13) shows the tax is \emph{task-dependent} and
+\emph{switch-triggered}:
 \begin{center}\small
 \begin{tabular}{lcccc}
 \hline
@@ -141,23 +159,17 @@ mathematical reasoning is untouched. Notably the effect is a \emph{step} at the
 thinking on/off boundary rather than a smooth function of effort level, which
 sharpens H1 into a stronger, more falsifiable claim.
 
-\section{Expected Outcomes}
-(1) A cross-task, cross-family characterization of whether the trade-off is a
-law or a set of local effects, and where it is worst. (2) A held-out,
-cost-matched evaluation of an oracle-free \emph{stopping rule} that decides
-when to stop thinking. (3) A released protocol, prompts, and raw responses for
-reproducibility.
+\section{Expected Outcomes \& Timeline}
+\textbf{Outcomes.} (1)~A cross-task, cross-family test of whether the
+trade-off is a law, and where it is worst; (2)~a held-out, cost-matched
+evaluation of an oracle-free \emph{stopping rule}; (3)~a released protocol,
+prompts and responses.
 
-\section{Timeline \& Responsibilities}
-Single-member project (all roles by the author).
-\begin{itemize}\itemsep1pt
-  \item \textbf{Wk 1--2} (done): landscape survey; protocol and code built;
-  pipeline validated; first real run on DeepSeek.
-  \item \textbf{Wk 3}: scale DeepSeek to 200 items $\times\,k{=}4$; add Qwen3,
-  GLM, Doubao for cross-family coverage.
-  \item \textbf{Wk 4}: train and evaluate the stopping rule (H2/H3); statistics.
-  \item \textbf{Wk 5}: final report, slides, and artifact release.
-\end{itemize}
+\textbf{Timeline} (single member; all roles by the author).
+\textbf{Wk~1--2} (done): survey, protocol and code, pipeline validation, first
+DeepSeek run. \textbf{Wk~3}: scale to 200 items $\times\,k{=}4$; add Qwen3,
+GLM and Doubao. \textbf{Wk~4}: train and evaluate the stopping rule (H2/H3).
+\textbf{Wk~5}: final report, slides, artifact release.
 
 \bibliography{refs}
 

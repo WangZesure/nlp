@@ -1,0 +1,55 @@
+# ============================================================
+#  Reliability Tax — course project repository
+#  Rule: commit in-progress CORE CODE and the PAPER build only.
+#        Scaffolding, raw downloads and bulk experiment output
+#        stay out of version control.
+# ============================================================
+
+# --- secrets: never commit ---
+Project/keys.txt
+*keys.txt
+*.key
+.env
+.env.*
+
+# --- other deliverables / other agents (not this project) ---
+HW-1/
+_agent/
+
+# --- scaffolding: corpus crawler, digest builder, raw site dump ---
+_scratch/crawl_papernotes.py
+_scratch/make_digest.py
+_scratch/acl2026.html
+_scratch/data/
+_scratch/related/
+
+# --- experiment inputs and bulk outputs (regenerable) ---
+_scratch/exp/data/
+_scratch/exp/runs/
+_scratch/exp/runs_mock/
+_scratch/exp/runs_v1_trunc/
+_scratch/exp/runs_v2_legacy/
+_scratch/exp/logs/
+_scratch/exp/dsprice.html
+_scratch/exp/tmp.html
+
+# --- LaTeX build artefacts (keep only the .pdf) ---
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.synctex.gz
+*.toc
+*.fls
+*.fdb_latexmk
+*.nav
+*.snm
+*.vrb
+
+# --- python / OS noise ---
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+tmp.html

@@ -1,0 +1,164 @@
+\documentclass[11pt]{article}
+
+% Course-project Phase-1 proposal (Research track). 1-2 pages; refs excluded.
+\usepackage{acl}          % final mode (no line numbers)
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{inconsolata}
+\usepackage{amsmath,amssymb}
+
+\title{The Reliability Tax: When Thinking Makes Language Models Less Trustworthy}
+\author{Anonymous \\
+  Natural Language Processing, Course Project (Research Track) \\
+  \texttt{anonymous@example.com}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Reasoning-augmented language models are deployed by default for high-stakes
+queries, and how long a model ``thinks'' is now a user-facing knob. The
+prevailing assumption is that more thinking yields more trustworthy answers.
+We test it. We formalize the capability--reliability trade-off as a measurable
+\emph{reliability tax}, and ask whether it is a law---and whether it is
+\emph{predictable}. A black-box budget sweep over four task types measures
+accuracy and three reliability axes jointly (calibration, selective
+prediction, abstention-versus-fabrication). A first real run already shows the
+tax is \emph{task-dependent} and \emph{switch-triggered}: on false-premise
+items, enabling thinking raises fabrication from 3.8\% to 21.3\%, while
+mathematical reasoning is unaffected.
+\end{abstract}
+
+\section{Background \& Motivation}
+Reasoning-augmented language models (LRMs) spend a variable amount of compute
+``thinking'' before answering \citep{Guo2025DeepSeekR1}, and this budget is
+increasingly exposed as a user-facing control \citep{Muennighoff2025s1,
+Snell2024TestTimeCompute}. The implicit contract is simple: \emph{more thinking
+buys more trustworthy answers}. Practitioners act on it---raising the budget to
+``max'' whenever an answer matters.
+
+That contract is being contradicted from several directions.
+Reinforcement learning that raises accuracy degrades calibration
+\citep{Wang2026CAPO, Jin2025Entropy}; enhancing reasoning amplifies tool
+hallucination, even at inference time \citep{Yin2025ReasoningTrap}; ``slower''
+models are measurably \emph{less} truthful under misleading input
+\citep{Fang2025Slower}; and reasoning models stay confidently wrong on a large
+fraction of false-premise queries \citep{Sathyanathan2025Presuppositions}.
+Crucially, the evidence is \emph{single-axis}, \emph{training-side}, and
+\emph{descriptive}: it shows the trade-off \emph{exists}, not whether it is a
+law, or---the property a deployment rule needs---whether it is
+\emph{predictable} from the trace before a budget is committed.
+
+\section{Research Questions \& Hypotheses}
+\textbf{RQ.} Does increasing a model's thinking budget systematically trade
+reliability for accuracy, and can the degradation be foreseen?
+\begin{itemize}\itemsep1pt
+  \item \textbf{H1 (task-dependence).} The ratio of reliability loss to
+  accuracy gain differs across task types by at least a factor of two.
+  \item \textbf{H2 (predictability, primary).} A predictor trained on a
+  held-out half decides, at low budget and \emph{without} seeing the
+  high-budget answer, whether continuing will help; the induced policy beats
+  the best fixed budget in \emph{usable accuracy} at matched cost.
+  \item \textbf{H3 (negative control).} Shuffling the trace features removes
+  H2's advantage---if not, the predictor exploits an artefact.
+\end{itemize}
+Each claim carries an explicit falsification condition, and the design is
+pre-registered on a held-out prompt split.
+
+\section{Preliminary Literature}
+The closest work varies the reasoning budget and measures \emph{one} axis:
+\citet{DontThinkTwice2025} show over-reasoning impairs confidence calibration;
+\citet{WhenMoreThinkingHurts2026} characterize the diminishing---sometimes
+negative---marginal utility of extra tokens. \citet{Yin2025ReasoningTrap} prove
+the capability--reliability trade-off is method-agnostic, and
+\citet{Fang2025Slower} establish inverse truthfulness scaling.
+Our study differs on three points: it measures three reliability axes
+\emph{jointly} to test whether they degrade as one; it spans tasks and model
+families rather than one benchmark; and it asks whether the degradation is
+\emph{predictable}, turning the trade-off curve into a black-box budget rule.
+(40 references collected and verified; ACL~2026 landscape survey of 1{,}409
+papers informs the framing.)
+
+\section{Method \& Experimental Design}
+\paragraph{The object.} Everything is read off the \emph{budget--reliability
+profile} of a model on a task: accuracy and each reliability axis as a function
+of the thinking budget. We report against the \emph{realized} reasoning-token
+count, since nominal budget knobs are not comparable across providers.
+
+\paragraph{The tax.} With every reliability score oriented so that higher is
+better, $\tau_r=(\partial\rho_r/\partial b)/(\partial \mathrm{acc}/\partial b)$
+is the reliability given up per unit of accuracy gained. Because $\tau_r$
+diverges where accuracy saturates, our primary summaries are bounded instead:
+the fixed-coverage risk $R(c)$ and the area under the risk--coverage curve
+\citep{Geifman2017Selective}.
+
+\paragraph{Three axes.} (i) \emph{Calibration}: ECE \citep{Guo2017ECE} and
+verbalized overconfidence \citep{Kadavath2022KnowWhatTheyKnow,Tian2023JustAsk}.
+(ii) \emph{Selective prediction}: $R(c)$ and AURC. (iii)
+\emph{Abstention vs.\ fabrication} on false-premise items, classified as
+refute / hedge / endorse, with fabrication rate = endorse share
+\citep{Sathyanathan2025Presuppositions,Kirichenko2025AbstentionBench}.
+
+\paragraph{Tasks and budget.} Four task types span where compute should help
+and where it can hurt: mathematical reasoning (GSM8K, MATH-500; verifiable),
+factual QA (NQ), multi-hop QA (HotpotQA; composition), and false-premise items
+built from SciFact claims whose evidence contradicts them
+\citep{Wadden2020SciFact}. The budget axis uses the provider's official
+controls---thinking on/off and reasoning-effort levels---not \texttt{max\_tokens},
+which would confound budget with truncation; realized reasoning tokens are
+logged per response. Four budgets $\times$ two prompt templates $\times$
+$k{=}4$ samples per item, with prompt-clustered bootstrap intervals.
+
+\paragraph{From profile to decision.} The profile yields an oracle: the budget
+maximizing \emph{usable accuracy}, i.e.\ accuracy at the coverage where ECE
+stays below a target $\epsilon$. We then test whether that oracle is
+\emph{findable} from low-budget features alone (realized length, verbalized
+confidence, self-consistency, hedging markers), with the H3 permutation
+control.
+
+\section{Preliminary Result}
+A first real run on \texttt{deepseek-flash} (1{,}280 calls, 0 errors;
+${\sim}\text{\textyen}7$--13) already indicates the tax is
+\emph{task-dependent} and \emph{switch-triggered}:
+\begin{center}\small
+\begin{tabular}{lcccc}
+\hline
+Task & Acc.\ off$\to$max & ECE off$\to$max & Fabrication off$\to$max \\
+\hline
+Math          & .988$\to$.950 & .01$\to$.04 & --- \\
+Factual QA    & .475$\to$.550 & .45$\to$.39 & --- \\
+Multi-hop QA  & .463$\to$.562 & .46$\to$.41 & --- \\
+False-premise & .962$\to$.800 & .03$\to$.13 & \textbf{.038$\to$.213} \\
+\hline
+\end{tabular}
+\end{center}
+On false-premise items---where there is \emph{no} accuracy to gain---enabling
+thinking multiplies fabrication by 5.6$\times$ and breaks calibration, while
+mathematical reasoning is untouched. Notably the effect is a \emph{step} at the
+thinking on/off boundary rather than a smooth function of effort level, which
+sharpens H1 into a stronger, more falsifiable claim.
+
+\section{Expected Outcomes}
+(1) A cross-task, cross-family characterization of whether the trade-off is a
+law or a set of local effects, and where it is worst. (2) A held-out,
+cost-matched evaluation of an oracle-free \emph{stopping rule} that decides
+when to stop thinking. (3) A released protocol, prompts, and raw responses for
+reproducibility.
+
+\section{Timeline \& Responsibilities}
+Single-member project (all roles by the author).
+\begin{itemize}\itemsep1pt
+  \item \textbf{Wk 1--2} (done): landscape survey; protocol and code built;
+  pipeline validated; first real run on DeepSeek.
+  \item \textbf{Wk 3}: scale DeepSeek to 200 items $\times\,k{=}4$; add Qwen3,
+  GLM, Doubao for cross-family coverage.
+  \item \textbf{Wk 4}: train and evaluate the stopping rule (H2/H3); statistics.
+  \item \textbf{Wk 5}: final report, slides, and artifact release.
+\end{itemize}
+
+\bibliography{refs}
+
+\end{document}

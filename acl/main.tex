@@ -1,0 +1,429 @@
+\documentclass[11pt]{article}
+
+% =============================================================
+%  The Reliability Tax — ACL 2026 course project (Research track)
+%  Draft: Abstract / Introduction / Related Work
+%
+%  NOTE ON PLACEHOLDERS: experiments have NOT been run yet.
+%  Every empirical claim is marked with \PH{...} and must be
+%  replaced with measured values before submission. Do not
+%  fabricate numbers.
+% =============================================================
+
+\usepackage[review]{acl}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{inconsolata}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+
+% placeholder macro for un-run results (delete before camera-ready)
+\newcommand{\PH}[1]{\textbf{[\,#1\,]}}
+
+\title{The Reliability Tax: Quantifying the Capability--Reliability Trade-off in Reasoning LLMs}
+
+\author{Anonymous ACL submission}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Reasoning-augmented language models (LRMs) are now deployed by default for
+high-stakes queries, and test-time compute---how long a model is allowed to
+``think''---is increasingly a user-facing knob.
+The prevailing assumption is that more thinking yields more trustworthy
+answers, but recent work has begun to undermine it: sweeping the reasoning
+budget impairs confidence calibration, and the marginal utility of extra
+reasoning turns negative.
+These findings are single-axis and descriptive: they show that
+the trade-off \emph{exists}, not whether it is uniform or---the property a
+deployment rule needs---whether it is \emph{predictable}.
+We ask whether a black-box user can foresee, before committing to a budget,
+that more thinking will hurt.
+Our budget-sweep protocol varies thinking across six models from four
+families over four task types, tracking accuracy and three reliability axes:
+calibration, selective prediction, and
+abstention versus fabrication on false-premise items, where \emph{fabrication}
+means endorsing a premise that is in fact false.
+We first measure the trade-off and find it is \emph{task-dependent}:
+\PH{the ratio of reliability loss to accuracy gain varies by} $\PH{x}\times$
+across tasks.
+We then show it is \emph{partly predictable}: using only the trace and
+verbalized confidence observed at a low budget, a lightweight predictor
+decides, on held-out items, whether continuing will help; the resulting
+oracle-free stopping rule attains higher \emph{usable accuracy}---accuracy at
+a fixed reliability floor---than the best fixed budget at matched cost, while
+a permutation control on the trace features loses the advantage.
+These results recast ``think longer'' from a default into a decision.
+\end{abstract}
+
+\section{Introduction}
+
+Reasoning-augmented language models (LRMs) such as o1-style systems and
+DeepSeek-R1 have become the default for tasks that were previously out of
+reach, and their defining property is that they spend a variable amount of
+compute \emph{thinking before answering} \citep{Guo2025DeepSeekR1}.
+This has turned test-time compute from an implementation detail into a
+first-class, increasingly user-facing control: models expose reasoning
+budgets, ``thinking effort'' levels, and explicit toggles
+\citep{Muennighoff2025s1, Snell2024TestTimeCompute}.
+The implicit contract behind these knobs is simple and appealing: \emph{more
+thinking should buy more trustworthy answers}.
+Practitioners act on it---escalating to higher reasoning budgets, longer
+chains of thought, or a reasoning model over a chat model whenever an answer
+matters.
+A customer-support or clinical-QA pipeline, for instance, may simply raise the
+reasoning budget to ``max'' for every incoming query, on the assumption that
+the most careful answer is the safest.
+The cost of that assumption is concrete: an over-confident wrong answer is
+worse than an admitted uncertainty, because nothing downstream flags it, and a
+model that fabricates support for a false premise is more dangerous than one
+that declines to answer.
+
+This contract is, however, being contradicted from several directions at
+once.
+Training that raises reasoning accuracy with verifiable rewards
+systematically degrades \emph{calibration}: incorrect answers acquire
+\emph{lower} perplexity than correct ones, so a model's confidence stops
+tracking its correctness \citep{Wang2026CAPO, Jin2025Entropy}.
+Enhancing reasoning amplifies tool hallucination---models fabricate
+non-existent tools---and the effect survives even when the enhancement is
+purely inference-time \citep{Yin2025ReasoningTrap}.
+In multimodal settings, ``slower'' models are measurably \emph{less} truthful
+under misleading inputs \citep{Fang2025Slower}.
+Reasoning models commit to false premises more decisively than their
+non-reasoning counterparts, becoming \emph{confidently wrong} on 26--42\% of
+false-premise queries \citep{Sathyanathan2025Presuppositions}, and even
+answers that are perfectly self-consistent can collapse under mild
+contextual interference \citep{Xu2026IllusionConfidence}.
+Most directly, sweeping the reasoning budget itself---at inference time, with
+no training involved---has been observed, in several settings, to impair
+confidence calibration \citep{DontThinkTwice2025} and to yield non-monotonic
+marginal returns \citep{WhenMoreThinkingHurts2026}.
+
+Each of these is a warning; none is a law.
+The existing evidence is fragmented along three axes.
+First, it is \emph{task- and family-local}: a single benchmark, often a
+single model or training recipe, is used to establish the effect.
+Second, it is overwhelmingly \emph{training-side}: the sharpest results
+concern what RLVR does to weights \citep{Wang2026CAPO, Jin2025Entropy},
+which is unavailable to the many practitioners who only have API access.
+Third, reliability is measured \emph{one axis at a time}---calibration
+\emph{or} selective prediction \emph{or} abstention---so it is impossible to
+tell whether these failures share a cause or merely co-occur.
+More fundamentally, even the closest work is \emph{descriptive}: none reports
+whether the three axes degrade \emph{together}, as one underlying cost, or
+whether the degradation is \emph{predictable} from the reasoning trace before
+a budget is committed---the property a deployment rule actually needs.
+Consequently, we cannot currently answer the question that actually governs
+deployment: \emph{does increasing a model's thinking budget systematically
+trade reliability for accuracy, and is that trade-off universal or
+task-specific?}
+
+We address this gap with a controlled, black-box study.
+We formalize the trade-off as a \emph{reliability tax}: with the thinking
+budget $b$ as the controlled variable and every reliability score $\rho_r$
+oriented so that higher is better, we estimate the ratio of reliability change
+to accuracy change,
+$\tau_r = (\partial \rho_r / \partial b) / (\partial \mathrm{acc} / \partial b)$,
+for each reliability axis $r$; a large $\tau_r$ means accuracy is bought at a
+steep reliability price---exactly the quantity a deployment should minimize.
+Because $\tau_r$ diverges where accuracy saturates, our primary summaries are
+bounded instead: the fixed-coverage risk and the area under the
+risk--coverage curve, with $\tau_r$ reported only where
+$\partial \mathrm{acc}/\partial b > 0$.
+The three axes correspond to the three decisions a high-stakes deployment must
+make---\emph{how much to trust an answer} (calibration), \emph{how much
+coverage to serve} (selective prediction), and \emph{whether to answer at all
+when the premise is false} (abstention versus fabrication)---and we measure
+them jointly precisely to test whether they degrade as one or independently.
+Our \emph{budget-sweep protocol} holds the prompt set fixed and varies a
+model's thinking budget across its supported range (reasoning-effort levels,
+reasoning-token caps, and black-box budget forcing \citep{Muennighoff2025s1}),
+tracking, at each budget, accuracy and the three axes: calibration, via ECE
+and verbalized overconfidence \citep{Kadavath2022KnowWhatTheyKnow,
+Tian2023JustAsk}; selective prediction, via the risk--coverage curve; and the
+\emph{fabricate-versus-abstain} choice on false-premise items
+\citep{Sathyanathan2025Presuppositions, Xu2026Presupposition}.
+We sweep six models from four families---open-weight and closed API, all
+exposing a thinking toggle or a reasoning-effort level---over four task types
+chosen to span where extra compute should help and where it can hurt:
+mathematical reasoning (verifiable), factual QA (closed-book knowledge),
+multi-hop QA (composition), and false-premise items (where the model should
+refuse).
+Because budget knobs are not comparable across providers, we report against
+the \emph{realized} number of reasoning tokens and include an equal-compute
+control; each item is rendered under several prompt templates so that
+form-induced variance can be separated from sampling variance
+\citep{Miller2024ErrorBars, Zhang2025BeyondSingular}; and all calls are pinned
+to dated model snapshots, since providers update models silently.
+Where a provider does not expose raw reasoning traces, our predictor falls
+back to the answer and verbalized confidence alone, so the protocol never
+assumes white-box access.
+We define \emph{usable accuracy} as the accuracy attainable at a fixed
+reliability floor---the accuracy over the subset served at the coverage where
+calibration error stays below a target $\epsilon$---so that a budget is judged
+by what it can be trusted to serve, not by its best-case answer.
+This design tests one descriptive and two predictive claims:
+\emph{H1 (task-dependence)} the ratio of reliability loss to accuracy gain
+differs across task types by at least a factor of two---falsified if the
+ratios are statistically indistinguishable;
+\emph{H2 (predictability)} a predictor trained on a held-out half decides, at
+low budget and without seeing the high-budget answer, whether continuing will
+help, and the induced policy beats the best fixed budget in usable accuracy at
+matched cost---falsified otherwise;
+\emph{H3 (negative control)} shuffling the trace features removes H2's
+advantage---if the shuffled control matches, the predictor exploits an
+artifact rather than the trace.
+
+Our contributions are:
+\begin{itemize}
+  \item A black-box \emph{budget-sweep protocol} and a multi-axis reliability
+  measurement---calibration, selective prediction, and
+  abstention-versus-fabrication---that any API user can apply without weights
+  or training.
+  \item To our knowledge, the first cross-task and cross-family test of
+  whether the trade-off is a law or a set of local effects, and of where it
+  is worst.
+  \item A held-out, cost-matched evaluation of an \emph{oracle-free stopping
+  rule} that decides when to stop thinking, together with a permutation
+  control that rules out trace-format artifacts.
+  \item The protocol, prompts, and raw responses, plus a reproducibility
+  recipe that pins dated API snapshots.
+\end{itemize}
+
+\section{Related Work}
+
+\paragraph{Reasoning models and test-time compute.}
+LRMs are trained to emit long reasoning traces before answering, most
+prominently through reinforcement learning with verifiable rewards
+\citep{Shao2024GRPO, Guo2025DeepSeekR1}.
+A parallel line studies how to spend \emph{inference-time} compute: scaling
+test-time search against verifiers can outperform a larger base model
+\citep{Snell2024TestTimeCompute}, and simple ``budget forcing'' can extend or
+truncate a trace to trade quality for cost \citep{Muennighoff2025s1}.
+A complementary strand asks what these traces actually buy.
+\citet{Shojaee2025IllusionThinking} show accuracy collapses past a complexity
+threshold and that reasoning effort rises then \emph{falls} as problems get
+harder; \citet{Srivastava2025Overthink} find reasoning models generate roughly
+$18\times$ more tokens while sometimes being \emph{less} accurate, with
+non-monotonic returns to budget.
+These works motivate treating the thinking budget as the independent variable,
+but they evaluate final-answer accuracy rather than reliability, and recent
+work further questions whether RLVR expands capability at all
+\citep{Yue2025RLBeyondBase, Zhao2025SpuriousRewards}.
+
+\paragraph{Efficient and adaptive reasoning.}
+A large literature instead makes reasoning \emph{cheaper}, by truncating or
+compressing traces and by early exit \citep{Chen2024Overthinking,
+Sui2025StopOverthinking, StepGRPO2026, EarlyExit2026}, while a recent strand
+characterizes the marginal utility of extra tokens
+\citep{WhenMoreThinkingHurts2026}.
+Early-exit methods share our goal of deciding \emph{when to stop}, but differ
+in both setting and signal: they read the model's \emph{internal} hidden states
+and are therefore white-box, and they optimize cost subject to accuracy.
+We stop from the \emph{external} trace and verbalized confidence alone---the
+only signals an API user has---and we optimize \emph{trust}: the question is
+not whether the answer stays as accurate, but whether it stays as reliable.
+
+\paragraph{Calibration, selective prediction, and abstention.}
+A well-calibrated model's confidence predicts its correctness, which is what
+makes deferral and abstention meaningful.
+Early work showed that conditional probabilities of large pretrained models
+are reasonably calibrated and that models can verbalize calibrated confidence
+\citep{Kadavath2022KnowWhatTheyKnow, Lin2022Verbalized}, while
+later work finds that instruction tuning and RLHF harm calibration and that
+\emph{verbalized} confidence is often the better estimate
+\citep{Tian2023JustAsk, Xiong2023Confidence, SanzGuerrero2026Overconfident}.
+Most recently, training-side analyses show RLVR makes models overconfident,
+degrading relative calibration as accuracy rises
+\citep{Wang2026CAPO, Jin2025Entropy}, and that superficially consistent
+beliefs can be brittle \citep{Xu2026IllusionConfidence}.
+The closely related notion of \emph{abstention}---knowing when not to
+answer---dates back to selective classification \citep{Geifman2017Selective}
+and is surveyed for LLMs by \citet{Slobodkin2024Abstention}; strikingly,
+reasoning models are \emph{worse} at abstaining on unanswerable questions
+\citep{Kirichenko2025AbstentionBench}.
+Calibration itself is usually operationalized through ECE, introduced for
+neural networks by \citet{Guo2017ECE}.
+This literature establishes \emph{that} calibration can degrade with
+reasoning, but studies one family, one training recipe, or one axis; whether
+calibration, abstention, and fabrication move together as a function of the
+budget a black-box user selects is unexamined.
+
+\paragraph{Faithfulness, sycophancy, and false premises.}
+Reasoning traces are not always faithful to the computation that produced
+the answer \citep{Turpin2023Unfaithful, Chen2025DontSay}, and
+models are readily steered by user framing or social pressure
+\citep{Sharma2023Sycophancy}.
+Hallucination is a growing concern: models fabricate tools as reasoning
+strengthens \citep{Yin2025ReasoningTrap}, produce unsupported claims that
+snowball across steps \citep{Zhang2023Snowball}, and cannot reliably
+self-correct their own reasoning \citep{Huang2024SelfCorrect}.
+On false-premise queries, reasoning models are confidently wrong on a large
+fraction of items \citep{Sathyanathan2025Presuppositions}, and do not reliably
+reason about the presuppositions such queries turn on
+\citep{Xu2026Presupposition}; multimodal reasoning models become less truthful
+as they think longer \citep{Fang2025Slower}.
+Each is typically studied in isolation; none is probed as a function of the
+thinking budget.
+
+\paragraph{Reliability pitfalls in evaluation.}
+Measuring reliability is itself error-prone.
+Benchmark scores carry large sampling variance---on GSM8K a single generation
+can vary by 18.6 points across runs---so multi-sample, hierarchical
+estimation is needed \citep{Zhang2025BeyondSingular, Miller2024ErrorBars}.
+We therefore adopt multi-sample estimation throughout.
+
+\paragraph{Closest work and our position.}
+The closest studies vary the reasoning budget and measure a single
+reliability axis: \citet{DontThinkTwice2025} show that over-reasoning
+impairs confidence calibration, and \citet{WhenMoreThinkingHurts2026}
+characterize the diminishing, sometimes negative, marginal utility of extra
+tokens.
+Both are single-axis, and neither asks whether the losses across axes
+\emph{co-move} or can be \emph{predicted}.
+We therefore change the question from \emph{whether} the trade-off exists to
+\emph{whether it is a law}: we measure calibration, selective prediction, and
+fabrication jointly across tasks and families, and test whether
+impending degradation is foreseeable from the trace, turning the trade-off
+curve into a black-box budget-selection rule.
+
+\section{The Reliability Tax}
+
+Everything in this paper is read off a single object: the
+\emph{budget--reliability profile} of a model on a task---how accuracy and
+each reliability axis change as the model is allowed to think longer.
+We fix notation and define this object (\S\ref{sec:profile}), read the tax
+from it (\S\ref{sec:tax}), operationalize the three axes
+(\S\ref{sec:axes}), and turn the profile into a decision rule
+(\S\ref{sec:rule}).
+
+\subsection{The budget--reliability profile}\label{sec:profile}
+Let $M$ be a model and $\mathcal{B}=\{b_0<\dots<b_B\}$ its supported thinking
+budgets---reasoning-effort levels, reasoning-token caps, or black-box budget
+forcing \citep{Muennighoff2025s1}.
+For a prompt $x$ and budget $b$, the model returns a response $y\sim M(x,b)$
+carrying a \emph{realized} reasoning length $\ell(y)$ in tokens.
+Because a nominal budget means different things to different providers, we plot
+every quantity against $\ell$ rather than $b$.
+For a fixed prompt set $\mathcal{D}$, the profile is the collection
+\begin{equation}
+\big\{\mathrm{acc}(b),\ \rho_1(b),\ \rho_2(b),\ \rho_3(b)\big\}_{b\in\mathcal{B}},
+\end{equation}
+estimated with $k$ samples per $(x,b)$ and reported with confidence intervals
+clustered by prompt---prompts, not samples, are the unit of variation
+\citep{Zhang2025BeyondSingular, Miller2024ErrorBars}.
+A profile is thus a two-dimensional object, budget against a reliability
+reading, and the paper is a study of its shape.
+
+\subsection{The reliability tax}\label{sec:tax}
+Orient each reliability score $\rho_r$ so that higher is better, and define the
+tax along the profile as
+\begin{equation}
+\tau_r(b)=\frac{\partial \rho_r/\partial b}{\partial \mathrm{acc}/\partial b},
+\end{equation}
+the reliability given up per unit of accuracy gained.
+A deployment wants $\tau_r$ small; a large $\tau_r$ means extra accuracy is
+bought at a steep reliability price.
+$\tau_r$ is undefined where accuracy saturates---precisely the regime we care
+about---so our primary summaries are \emph{bounded}: the fixed-coverage risk
+$R(c)$, the error rate over the top-$c$ fraction of the most confident
+answers, and the area under the risk--coverage curve \citep{Geifman2017Selective};
+we report $\tau_r$ only where $\partial\mathrm{acc}/\partial b>0$.
+
+\subsection{Three reliability axes}\label{sec:axes}
+The axes are the three decisions a high-stakes deployment must make.
+\paragraph{Calibration (how much to trust an answer).}
+Expected calibration error \citep{Guo2017ECE} and \emph{overconfidence}, the
+mean verbalized confidence on incorrect answers
+\citep{Kadavath2022KnowWhatTheyKnow, Tian2023JustAsk, Xiong2023Confidence}.
+\paragraph{Selective prediction (how much coverage to serve).}
+$R(c)$ and AURC, which bound how much of the task a system can answer before
+its error rate exceeds a target.
+\paragraph{Abstention versus fabrication (whether to answer a false premise).}
+On false-premise items we classify each response as \emph{refute},
+\emph{hedge}, or \emph{endorse}, and report the fabrication rate---endorsing a
+premise that is false \citep{Sathyanathan2025Presuppositions,
+Kirichenko2025AbstentionBench}.
+The three are measured jointly because the question is not whether any one
+degrades, but whether they degrade \emph{together}.
+
+\subsection{From profile to decision: a stopping rule}\label{sec:rule}
+The profile also yields an oracle: $b^\star$ maximizes usable accuracy, the
+accuracy at the coverage where calibration error stays below a target
+$\epsilon$.
+The actionable question is whether $b^\star$ can be found \emph{without}
+running the expensive end of the sweep.
+We train a predictor on a held-out half of the prompts: at a low budget $b_0$
+it observes features $f(y)$---realized length, verbalized confidence,
+self-consistency across $k$ samples, and hedging markers---and decides whether
+continuing to the top budget will help.
+The induced policy is evaluated on the other half, compared against every
+fixed budget under matched cost, and stress-tested by shuffling $f$ across
+prompts: if the shuffled control matches, the predictor exploits an artifact
+rather than the trace.
+Where a provider does not expose raw reasoning traces, $f$ reduces to the
+answer and its verbalized confidence, so the rule never assumes white-box
+access.
+
+\section{Experimental Setup}
+\paragraph{Models.}
+Six models from four widely-deployed families, spanning open-weight and
+closed API, each exposing a thinking toggle or a distinct reasoning variant:
+DeepSeek (R1 and V3), Qwen3 (235B and 32B, with an \texttt{enable\_thinking}
+toggle), GLM-4.6, and Kimi-K2.
+All are reachable through OpenAI-compatible endpoints, and each provides at
+least two settings of the budget $b$, so that $b$ is a real knob rather than a
+prompt artefact.
+\paragraph{Tasks.}
+Four types chosen to span where extra compute should help and where it can
+hurt: mathematical reasoning (GSM8K, MATH-500; verifiable), factual QA
+(TriviaQA, NQ; closed-book knowledge), multi-hop QA (HotpotQA; composition),
+and \emph{false-premise} items, drawn from fact-checked claims known to be
+false \citep{Wadden2020SciFact} and rewritten as questions that presuppose
+them (e.g., ``Why did Einstein win the 1921 Nobel Prize in Literature?''),
+where the reliable behaviour is to refute rather than answer. \PH{200 items
+per task.}
+\paragraph{Budgets and sampling.}
+\PH{Four budget levels} per model, \PH{$k=4$} samples per cell at temperature
+$0.7$, under \PH{two} prompt templates so that form-induced variance can be
+separated from sampling variance \citep{Miller2024ErrorBars}.
+\paragraph{Statistics.}
+Prompt-clustered bootstrap intervals and mixed-effects models with prompt and
+model as random effects; the negative control is a permutation test over $f$.
+\paragraph{Reproducibility.}
+All calls are pinned to dated model snapshots; prompts, responses, and scripts
+are released.
+
+\subsection{A minimal viable pilot}
+Before the full sweep we run the smallest end-to-end version that exercises
+every stage---budget sweep, profile, tax, stopping decision---on a single
+model and two budgets (\PH{100 items}, \PH{$k=4$}).
+To validate the pipeline itself rather than a model, we first drive it with a
+synthetic backend that plants a known tax (accuracy rises modestly while
+calibration and fabrication degrade); the pipeline recovers the planted signs
+and selects the lower budget as the trustworthy one, and the same script runs
+unchanged against a real API.
+The pilot is the unit of validation: if the pipeline cannot recover a known
+effect here, the larger sweep will not either.
+
+\section{Results and Analysis}
+\paragraph{RQ1: Is the tax real, and is it a law?}
+\PH{Profile shapes per model and task; tax magnitude; and whether the ratio of
+reliability loss to accuracy gain differs across tasks by the factor of two
+predicted by H1.}
+\paragraph{RQ2: Is it predictable?}
+\PH{Predictor accuracy on held-out prompts; the stopping rule's usable
+accuracy against the best fixed budget under matched cost (H2); and the
+shuffled-feature control (H3).}
+\paragraph{RQ3: What does it cost in practice?}
+\PH{The share of queries on which the default of ``max budget'' over-thinks,
+and the usable accuracy recovered by stopping.}
+
+\bibliography{refs}
+
+\end{document}

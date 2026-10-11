@@ -1,0 +1,380 @@
+{
+ "deepseek-chat|factqa": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ },
+ "deepseek-chat|falsepremise": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ },
+ "deepseek-chat|math": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ },
+ "deepseek-chat|multihop": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ },
+ "deepseek-flash|factqa": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ },
+ "deepseek-flash|falsepremise": {
+  "profile": {
+   "off": {
+    "accuracy": 0.8,
+    "ece": 0.062000000000000055,
+    "overconfidence": 0.75,
+    "fabrication": 0.2
+   },
+   "low": {
+    "accuracy": 0.7,
+    "ece": 0.10200000000000009,
+    "overconfidence": 0.6375,
+    "fabrication": 0.30000000000000004
+   },
+   "high": {
+    "accuracy": 0.4,
+    "ece": 0.512,
+    "overconfidence": 0.9116666666666666,
+    "fabrication": 0.6
+   },
+   "max": {
+    "accuracy": 0.30000000000000004,
+    "ece": 0.603,
+    "overconfidence": 0.8875,
+    "fabrication": 0.7
+   }
+  },
+  "tax_b1_to_b4": {
+   "ece": 1.0819999999999999,
+   "overconfidence": 0.2749999999999999,
+   "fabrication": 0.9999999999999999
+  },
+  "oracle_budget": "off",
+  "usable_accuracy": 0.8
+ },
+ "deepseek-flash|math": {
+  "profile": {
+   "off": {
+    "accuracy": 1.0,
+    "ece": 0.28500000000000003,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": 0.6,
+    "ece": 0.08800000000000002,
+    "overconfidence": 0.6599999999999999,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": 0.7,
+    "ece": 0.2109999999999999,
+    "overconfidence": 0.89,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": 0.6,
+    "ece": 0.312,
+    "overconfidence": 0.905,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {
+   "ece": 0.06749999999999992
+  },
+  "oracle_budget": "low",
+  "usable_accuracy": 0.6
+ },
+ "deepseek-flash|multihop": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ },
+ "deepseek-reasoner|factqa": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ },
+ "deepseek-reasoner|falsepremise": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ },
+ "deepseek-reasoner|math": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ },
+ "deepseek-reasoner|multihop": {
+  "profile": {
+   "off": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "low": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "high": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   },
+   "max": {
+    "accuracy": null,
+    "ece": null,
+    "overconfidence": null,
+    "fabrication": null
+   }
+  },
+  "tax_b1_to_b4": {},
+  "oracle_budget": "off",
+  "usable_accuracy": null
+ }
+}
